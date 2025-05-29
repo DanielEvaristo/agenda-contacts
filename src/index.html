@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agenda de Contactos</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Alpine.js -->
+  <script defer src="https://unpkg.com/alpinejs@3.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+  <div x-data="contactApp()" x-init="load()" class="bg-white shadow-lg rounded-2xl p-6 w-full max-w-lg">
+    <h1 class="text-3xl font-bold text-center mb-6">Agenda de Contactos</h1>
+
+    <!-- Formulario de nuevo contacto / edición -->
+    <form @submit.prevent="save()" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+      <input
+        type="text"
+        placeholder="Nombre"
+        x-model="form.name"
+        required
+        class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+      <input
+        type="email"
+        placeholder="Email"
+        x-model="form.email"
+        required
+        class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+      <button
+        type="submit"
+        class="sm:col-span-2 bg-blue-500 hover:bg-blue-600 text-white font-medium px-4 py-2 rounded-lg transition-colors"
+      >
+        <span x-text="editing ? 'Guardar Cambios' : 'Añadir Contacto'"></span>
+      </button>
+      <button
+        type="button"
+        x-show="editing"
+        @click="cancelEdit()"
+        class="sm:col-span-2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium px-4 py-2 rounded-lg transition-colors"
+      >
+        Cancelar
+      </button>
+    </form>
+
+    <!-- Mensaje cuando no hay contactos -->
+    <template x-if="contacts.length === 0">
+      <p class="text-center text-gray-500">No hay contactos todavía.</p>
+    </template>
+
+    <!-- Lista de contactos -->
+    <ul>
+      <template x-for="c in contacts" :key="c.id">
+        <li class="flex items-center justify-between p-4 border-b last:border-none">
+          <div>
+            <span class="font-semibold text-lg capitalize" x-text="c.name"></span>
+            <span class="text-gray-600 ml-2" x-text="c.email"></span>
+          </div>
+          <div class="flex space-x-3">
+            <!-- Edit icon (inline SVG) -->
+            <button
+              @click="startEdit(c)"
+              class="text-green-500 hover:text-green-700"
+              aria-label="Editar contacto"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 11l6-6 3 3-6 6H9v-3z" />
+              </svg>
+            </button>
+            <!-- Delete icon (inline SVG) -->
+            <button
+              @click="remove(c.id)"
+              class="text-red-500 hover:text-red-700"
+              aria-label="Eliminar contacto"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </li>
+      </template>
+    </ul>
+  </div>
+
+  <script>
+    function contactApp() {
+      return {
+        contacts: [],
+        form: { name: '', email: '' },
+        editing: false,
+        editId: null,
+
+        async load() {
+          const res = await fetch('/api/contacts');
+          this.contacts = await res.json();
+        },
+
+        async save() {
+          if (this.editing) {
+            const res = await fetch(`/api/contacts/${this.editId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(this.form),
+            });
+            const updated = await res.json();
+            this.contacts = this.contacts.map(c => c.id === this.editId ? updated : c);
+            this.cancelEdit();
+          } else {
+            const res = await fetch('/api/contacts', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(this.form),
+            });
+            const created = await res.json();
+            this.contacts.push(created);
+            this.form.name = this.form.email = '';
+          }
+        },
+
+        startEdit(contact) {
+          this.editing = true;
+          this.editId = contact.id;
+          this.form.name = contact.name;
+          this.form.email = contact.email;
+        },
+
+        cancelEdit() {
+          this.editing = false;
+          this.editId = null;
+          this.form.name = this.form.email = '';
+        },
+
+        async remove(id) {
+          await fetch(`/api/contacts/${id}`, { method: 'DELETE' });
+          this.contacts = this.contacts.filter(c => c.id !== id);
+        },
+      };
+    }
+  </script>
+</body>
+</html>
