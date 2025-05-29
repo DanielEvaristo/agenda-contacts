@@ -86,6 +86,8 @@
   </div>
 
   <script>
+    const API_BASE = 'https://agenda-api.azurewebsites.net/api';
+
     function contactApp() {
       return {
         contacts: [],
@@ -94,13 +96,13 @@
         editId: null,
 
         async load() {
-          const res = await fetch('/api/contacts');
+          const res = await fetch(`${API_BASE}/contacts`);
           this.contacts = await res.json();
         },
 
         async save() {
           if (this.editing) {
-            const res = await fetch(`/api/contacts/${this.editId}`, {
+            const res = await fetch(`${API_BASE}/contacts/${this.editId}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(this.form),
@@ -109,7 +111,7 @@
             this.contacts = this.contacts.map(c => c.id === this.editId ? updated : c);
             this.cancelEdit();
           } else {
-            const res = await fetch('/api/contacts', {
+            const res = await fetch(`${API_BASE}/contacts`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(this.form),
@@ -134,7 +136,7 @@
         },
 
         async remove(id) {
-          await fetch(`/api/contacts/${id}`, { method: 'DELETE' });
+          await fetch(`${API_BASE}/contacts/${id}`, { method: 'DELETE' });
           this.contacts = this.contacts.filter(c => c.id !== id);
         },
       };
