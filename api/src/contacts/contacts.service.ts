@@ -5,10 +5,16 @@ import { TableClient } from '@azure/data-tables';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 
+// Nombre de la tabla en Azure
 const tableName = 'Contacts';
 
-// Forzamos a TS a tratar esta variable como string (nunca undefined)
-const connectionString: string = process.env.AzureWebJobsStorage!;
+// Carga obligatoria de la Connection String desde la App Setting TABLE_CONNECTION_STRING
+const connectionString: string = process.env.TABLE_CONNECTION_STRING!;
+if (!connectionString) {
+  throw new InternalServerErrorException(
+    'Falta configurar TABLE_CONNECTION_STRING en las variables de entorno'
+  );
+}
 
 @Injectable()
 export class ContactsService {
@@ -16,12 +22,7 @@ export class ContactsService {
   private readonly partitionKey = 'contactsPK';
 
   constructor() {
-    // Si por alguna razón la var no estuviera, mejor que explote aquí
-    if (!connectionString) {
-      throw new InternalServerErrorException(
-        'Falta configurar AzureWebJobsStorage en las variables de entorno'
-      );
-    }
+    // Inicializa el cliente usando la connection string personalizada
     this.client = TableClient.fromConnectionString(connectionString, tableName);
   }
 
@@ -55,7 +56,7 @@ export class ContactsService {
 
   /** Crea un nuevo contacto */
   async create(dto: CreateContactDto): Promise<{ id: string; name: string; email: string }> {
-    const rowKey = Date.now().toString(); // O UUID
+    const rowKey = Date.now().toString();
     try {
       await this.client.createEntity({
         partitionKey: this.partitionKey,
