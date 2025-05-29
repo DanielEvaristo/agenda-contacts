@@ -1,54 +1,99 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { promises as fs } from 'fs';
-import { join } from 'path';
+// src/contacts/contacts.service.ts
+
+import { Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import { TableClient } from '@azure/data-tables';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 
-const DATA_FILE = join(process.cwd(), 'src', 'data', 'contacts.json');
+const tableName = 'Contacts';
+
+// Forzamos a TS a tratar esta variable como string (nunca undefined)
+const connectionString: string = process.env.AzureWebJobsStorage!;
 
 @Injectable()
 export class ContactsService {
-  private async readAll() {
-    const raw = await fs.readFile(DATA_FILE, 'utf-8');
-    return JSON.parse(raw) as any[];
-  }
-  private async writeAll(list: any[]) {
-    await fs.writeFile(DATA_FILE, JSON.stringify(list, null, 2), 'utf-8');
+  private readonly client: TableClient;
+  private readonly partitionKey = 'contactsPK';
+
+  constructor() {
+    // Si por alguna razón la var no estuviera, mejor que explote aquí
+    if (!connectionString) {
+      throw new InternalServerErrorException(
+        'Falta configurar AzureWebJobsStorage en las variables de entorno'
+      );
+    }
+    this.client = TableClient.fromConnectionString(connectionString, tableName);
   }
 
-  async findAll() {
-    return this.readAll();
+  /** Lista todos los contactos */
+  async findAll(): Promise<{ id: string; name: string; email: string }[]> {
+    const entities = this.client.listEntities();
+    const result: { id: string; name: string; email: string }[] = [];
+    for await (const e of entities) {
+      result.push({
+        id: e.rowKey!,
+        name: e.name as string,
+        email: e.email as string,
+      });
+    }
+    return result;
   }
 
-  async findOne(id: string) {
-    const all = await this.readAll();
-    const item = all.find(c => c.id === id);
-    if (!item) throw new NotFoundException('Contacto no encontrado');
-    return item;
-  }
-
-  async create(dto: CreateContactDto) {
-    const all = await this.readAll();
-    const newItem = { id: Date.now().toString(), ...dto };
-    all.push(newItem);
-    await this.writeAll(all);
-    return newItem;
-  }
-
-  async update(id: string, dto: UpdateContactDto) {
-    const all = await this.readAll();
-    const idx = all.findIndex(c => c.id === id);
-    if (idx < 0) throw new NotFoundException('Contacto no encontrado');
-    all[idx] = { ...all[idx], ...dto };
-    await this.writeAll(all);
-    return all[idx];
-  }
-
-  async remove(id: string) {
-    const all = await this.readAll();
-    const filtered = all.filter(c => c.id !== id);
-    if (filtered.length === all.length)
+  /** Obtiene un contacto por su RowKey */
+  async findOne(id: string): Promise<{ id: string; name: string; email: string }> {
+    try {
+      const e = await this.client.getEntity(this.partitionKey, id);
+      return {
+        id: e.rowKey!,
+        name: e.name as string,
+        email: e.email as string,
+      };
+    } catch {
       throw new NotFoundException('Contacto no encontrado');
-    await this.writeAll(filtered);
+    }
+  }
+
+  /** Crea un nuevo contacto */
+  async create(dto: CreateContactDto): Promise<{ id: string; name: string; email: string }> {
+    const rowKey = Date.now().toString(); // O UUID
+    try {
+      await this.client.createEntity({
+        partitionKey: this.partitionKey,
+        rowKey,
+        name: dto.name,
+        email: dto.email,
+      });
+      return { id: rowKey, name: dto.name, email: dto.email };
+    } catch (err) {
+      console.error('Error creando entidad en Table Storage:', err);
+      throw new InternalServerErrorException('No se pudo crear el contacto');
+    }
+  }
+
+  /** Actualiza un contacto existente (merge de propiedades) */
+  async update(id: string, dto: UpdateContactDto): Promise<{ id: string; name: string; email: string }> {
+    try {
+      await this.client.upsertEntity(
+        {
+          partitionKey: this.partitionKey,
+          rowKey: id,
+          name: dto.name,
+          email: dto.email,
+        },
+        'Merge'
+      );
+      return this.findOne(id);
+    } catch {
+      throw new NotFoundException('Contacto no encontrado');
+    }
+  }
+
+  /** Elimina un contacto */
+  async remove(id: string): Promise<void> {
+    try {
+      await this.client.deleteEntity(this.partitionKey, id);
+    } catch {
+      throw new NotFoundException('Contacto no encontrado');
+    }
   }
 }
