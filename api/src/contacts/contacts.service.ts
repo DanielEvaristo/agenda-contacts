@@ -15,7 +15,7 @@ if (!connectionString) {
     'Falta configurar TABLE_CONNECTION_STRING en las variables de entorno'
   );
 }
-//prueba
+
 @Injectable()
 export class ContactsService {
   private readonly client: TableClient;

@@ -2,18 +2,18 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>Agenda de Contactos</title>
-  <!-- Tailwind CSS -->
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Alpine.js -->
+  <!-- Alpine.js CDN -->
   <script defer src="https://unpkg.com/alpinejs@3.x/dist/cdn.min.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center">
   <div x-data="contactApp()" x-init="load()" class="bg-white shadow-lg rounded-2xl p-6 w-full max-w-lg">
     <h1 class="text-3xl font-bold text-center mb-6">Agenda de Contactos</h1>
 
-    <!-- Formulario de nuevo contacto / edición -->
+    <!-- Formulario de creación/edición -->
     <form @submit.prevent="save()" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
       <input
         type="text"
@@ -59,7 +59,7 @@
             <span class="text-gray-600 ml-2" x-text="c.email"></span>
           </div>
           <div class="flex space-x-3">
-            <!-- Edit icon (inline SVG) -->
+            <!-- Edit icon -->
             <button
               @click="startEdit(c)"
               class="text-green-500 hover:text-green-700"
@@ -69,7 +69,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 11l6-6 3 3-6 6H9v-3z" />
               </svg>
             </button>
-            <!-- Delete icon (inline SVG) -->
+            <!-- Delete icon -->
             <button
               @click="remove(c.id)"
               class="text-red-500 hover:text-red-700"
