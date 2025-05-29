@@ -8,13 +8,6 @@ import { UpdateContactDto } from './dto/update-contact.dto';
 // Nombre de la tabla en Azure
 const tableName = 'Contacts';
 
-// Carga obligatoria de la Connection String desde la App Setting TABLE_CONNECTION_STRING
-const connectionString: string = process.env.TABLE_CONNECTION_STRING!;
-if (!connectionString) {
-  throw new InternalServerErrorException(
-    'Falta configurar TABLE_CONNECTION_STRING en las variables de entorno'
-  );
-}
 
 @Injectable()
 export class ContactsService {
@@ -23,6 +16,12 @@ export class ContactsService {
 
   constructor() {
     // Inicializa el cliente usando la connection string personalizada
+    const connectionString = process.env.TABLE_CONNECTION_STRING;
+    if (!connectionString) {
+      throw new InternalServerErrorException(
+        'Falta configurar TABLE_CONNECTION_STRING en las variables de entorno'
+      );
+    }
     this.client = TableClient.fromConnectionString(connectionString, tableName);
   }
 
